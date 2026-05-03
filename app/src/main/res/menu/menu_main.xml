@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<menu xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto">
+    <item
+        android:id="@+id/action_offline_download"
+        android:icon="@android:drawable/stat_sys_download"
+        android:title="@string/offline_download"
+        app:showAsAction="ifRoom" />
+    <item
+        android:id="@+id/action_offline_clear"
+        android:title="@string/offline_clear"
+        app:showAsAction="never" />
+</menu>

@@ -1,0 +1,127 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">MGRS Координати</string>
+    <string name="btn_locate">Визначити координати</string>
+    <string name="btn_stop">Зупинити збір</string>
+    <string name="btn_copy">Копіювати MGRS</string>
+    <string name="btn_share">Поділитися</string>
+    <string name="mode_moving">Я в русі</string>
+
+    <string name="press_button_hint">Натисніть кнопку, щоб визначити поточні координати у форматі MGRS.</string>
+    <string name="locating">Визначення координат…</string>
+    <string name="processing_result">Обробка результату…</string>
+    <string name="collecting">Збір точок: %1$d / %2$d…</string>
+    <string name="collecting_with_acc">Збір точок: %1$d / %2$d  (поточна σ ≈ %3$s м)</string>
+    <string name="warmup">Прогрів GPS: %1$d / %2$d (перші fix-и пропускаємо)</string>
+    <string name="no_good_fix">Не вдалося отримати достатньо точних точок. Вийдіть на більш відкрите місце (галявина, узлісся) і спробуйте ще раз.</string>
+    <string name="timeout_prefix">⚠ Таймаут — використано наявні точки\n\n</string>
+    <string name="permission_denied">Дозвіл на геолокацію відхилено</string>
+    <string name="copied">MGRS скопійовано в буфер</string>
+    <string name="share_title">Поділитися координатами</string>
+    <string name="share_text">MGRS: %1$s\nLat: %2$s\nLon: %3$s</string>
+
+    <!-- 1: MGRS, 2: precision label, 3: lat, 4: lon, 5: accuracy, 6: samples -->
+    <string name="coords_format">MGRS: %1$s\nТочність сітки: %2$s\nШирота:  %3$s\nДовгота: %4$s\nОцінена точність: %5$s\nУсереднено точок: %6$d</string>
+
+    <!-- 1: used, 2: visible, 3: avg CN0, 4: bands -->
+    <string name="gnss_status">GNSS: %1$d/%2$d супутн.   CN0≈%3$.0f дБГц   %4$s</string>
+    <string name="gnss_idle">GNSS: очікування супутників…</string>
+
+    <!-- Локалізовані мітки точності сітки MGRS -->
+    <string name="precision_1m">1 м</string>
+    <string name="precision_10m">10 м</string>
+    <string name="precision_100m">100 м</string>
+    <string name="precision_1km">1 км</string>
+    <string name="precision_10km">10 км</string>
+    <string name="precision_100km">100 км</string>
+
+    <!-- Foreground Service -->
+    <string name="svc_channel_name">Збір MGRS</string>
+    <string name="svc_channel_desc">Сповіщення під час збору точок координат у фоні.</string>
+    <string name="svc_starting">Запуск GPS…</string>
+    <string name="svc_collecting">Збір: %1$d/%2$d  σ≈%3$s м</string>
+    <string name="svc_done">Готово: %1$s</string>
+
+    <!-- Збережені точки -->
+    <string name="btn_save">Зберегти точку</string>
+        <string name="btn_goto_coords">Перейти до координат</string>
+    <string name="btn_delete">Видалити</string>
+    <string name="save_title">Зберегти waypoint</string>
+    <string name="save_action">Зберегти</string>
+    <string name="save_name_hint">Назва точки (наприклад, «склад»)</string>
+    <string name="saved">Збережено</string>
+    <string name="crosshair_add_waypoint">Поставити орієнтир у центрі прицілу</string>
+    <string name="crosshair_save_title">Новий орієнтир по прицілу</string>
+    <string name="crosshair_save_message">Центр прицілу:
+MGRS: %1$s
+Lat/Lon: %2$s</string>
+    <string name="crosshair_saved">Орієнтир збережено</string>
+    <string name="saved_list_title">Збережені точки</string>
+    <string name="saved_empty">Список порожній. Збережіть першу точку з головного екрану.</string>
+    <string name="saved_meta">%1$s · ±%2$.0f м · %3$d супутн.</string>
+    <string name="saved_meta_manual">%1$s · орієнтир по мапі</string>
+
+    <!-- Сенсори: компас + альтиметр -->
+    <string name="sensors_idle">Сенсори: очікування…</string>
+    <string name="compass_value">↑ %1$.0f° %2$s</string>
+    <string name="compass_unavailable">Компас: н/д</string>
+    <string name="altimeter_value">⛰ %1$.0f м (%2$.1f hPa)</string>
+    <string name="altimeter_unavailable">Альтиметр: н/д</string>
+
+    <!-- GPX-експорт -->
+    <string name="export_gpx">Експорт у GPX</string>
+    <string name="export_done">GPX-файл збережено</string>
+    <string name="export_failed">Не вдалося зберегти GPX</string>
+
+    <!-- GPS-висота / калібрування альтиметра -->
+    <string name="altitude_with_acc">GPS-висота: %1$.0f м (±%2$.0f м)</string>
+    <string name="altitude_only">GPS-висота: %1$.0f м</string>
+    <string name="altimeter_calibrated">Альтиметр відкалібровано за GPS</string>
+    <string name="altimeter_calibrate_need_fix">Потрібен GPS-фікс із висотою і робочий барометр</string>
+
+    <!-- Запис треку -->
+    <string name="track_start">Почати запис треку</string>
+    <string name="track_running">Запис треку: %1$d точок</string>
+    <string name="track_ready_export">Експорт треку (%1$d точок)</string>
+    <string name="track_started">Запис треку розпочато</string>
+    <string name="track_stopped">Запис зупинено: %1$d точок</string>
+    <string name="track_stop_first">Спершу зупиніть запис</string>
+    <string name="track_too_short">У треку замало точок</string>
+    <string name="track_export_title">Трек</string>
+    <string name="track_export_msg">У треку %1$d точок. Експортувати у GPX?</string>
+    <string name="track_export_save">Зберегти GPX</string>
+    <string name="track_clear">Очистити трек</string>
+    <string name="track_cleared">Трек очищено</string>
+
+    <!-- Сервіс: трекінг -->
+    <string name="svc_tracking">трек %1$d</string>
+
+    <!-- Карта: вейпойнти + Go-to -->
+    <string name="waypoints_toggle">Показати/сховати точки на карті</string>
+    <string name="waypoint_rename_title">Перейменувати орієнтир</string>
+    <string name="waypoint_rename_action">Перейменувати</string>
+    <string name="waypoint_renamed">Назву орієнтира оновлено</string>
+    <string name="nav_set">Йти сюди</string>
+    <string name="nav_clear">Скасувати ціль</string>
+    <string name="nav_line">→ %1$s: %2$.0f° (%3$s) · %4$s</string>
+    <string name="nav_line_with_rel">→ %1$s: %2$.0f° (%3$s) · %4$s · Δ %5$+.0f°</string>
+    <string name="nav_no_fix">Ціль: %1$s — чекаю GPS-фіксу</string>
+        <string name="goto_coords_title">Перейти до координат</string>
+        <string name="goto_coords_hint">MGRS або lat, lon</string>
+        <string name="goto_coords_message">Підтримується MGRS або десяткові координати, наприклад: 36UYA1234567890 або 49.8397, 24.0297</string>
+        <string name="goto_coords_invalid">Не вдалося розпізнати координати</string>
+        <string name="goto_coords_moved">Перехід до: %1$s</string>
+    <string name="center_on_me">Центр на мені (long-press: вписати все)</string>
+    <string name="center_no_fix">Немає GPS-фіксу — нема де центрувати</string>
+    <string name="offline_download">Завантажити офлайн-карту</string>
+    <string name="offline_clear">Очистити кеш карти</string>
+    <string name="long_press_to_copy">Утримуйте, щоб копіювати MGRS</string>
+    <string name="mode_moving_on">Режим «У русі» увімкнено</string>
+    <string name="layers_toggle_with_offline">Шар карти. Утримуйте для офлайн-мапи та очищення кешу.</string>
+
+    <!-- Шари карти / компас -->
+    <string name="layers_toggle">Шар карти (OSM / Супутник / Гібрид)</string>
+    <string name="compass_reset">Компас карти. Тап — повернути північ догори.</string>
+    <string name="map_north_restored">Північ догори</string>
+    <string name="coords_collapse_toggle">Згорнути / розгорнути панель координат</string>
+</resources>

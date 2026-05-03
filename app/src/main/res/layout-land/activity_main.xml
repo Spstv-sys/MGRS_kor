@@ -1,0 +1,334 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:fitsSystemWindows="true">
+
+    <!-- Вертикальний гайдлайн ділить екран ~58/42 між картою та панеллю -->
+    <androidx.constraintlayout.widget.Guideline
+        android:id="@+id/guideMid"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        app:layout_constraintGuide_percent="0.58" />
+
+    <org.osmdroid.views.MapView
+        android:id="@+id/map"
+        android:layout_width="0dp"
+        android:layout_height="0dp"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toStartOf="@id/guideMid"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent" />
+
+    <ImageView
+        android:id="@+id/ivCrosshair"
+        android:layout_width="40dp"
+        android:layout_height="40dp"
+        android:alpha="0.92"
+        android:clickable="false"
+        android:contentDescription="@null"
+        android:focusable="false"
+        android:importantForAccessibility="no"
+        android:src="@drawable/ic_crosshair_24"
+        android:tint="@android:color/white"
+        app:layout_constraintBottom_toBottomOf="@id/map"
+        app:layout_constraintEnd_toEndOf="@id/map"
+        app:layout_constraintStart_toStartOf="@id/map"
+        app:layout_constraintTop_toTopOf="@id/map" />
+
+    <com.google.android.material.progressindicator.CircularProgressIndicator
+        android:id="@+id/progress"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:visibility="gone"
+        android:indeterminate="true"
+        android:max="100"
+        app:indicatorSize="56dp"
+        app:trackThickness="5dp"
+        app:layout_constraintBottom_toBottomOf="@id/map"
+        app:layout_constraintEnd_toEndOf="@id/map"
+        app:layout_constraintStart_toStartOf="@id/map"
+        app:layout_constraintTop_toTopOf="@id/map" />
+
+    <!-- Топ-панель тільки над картою -->
+    <com.google.android.material.button.MaterialButton
+        android:id="@+id/btnList"
+        style="@style/Widget.Material3.Button.IconButton.Filled.Tonal"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_margin="@dimen/top_button_margin"
+        android:contentDescription="@string/saved_list_title"
+        app:icon="@drawable/ic_menu_24"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintStart_toStartOf="parent" />
+
+    <com.google.android.material.button.MaterialButton
+        android:id="@+id/btnTrack"
+        style="@style/Widget.Material3.Button.IconButton.Filled.Tonal"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="@dimen/top_button_margin"
+        android:layout_marginStart="@dimen/top_button_gap"
+        android:contentDescription="@string/track_start"
+        app:icon="@drawable/ic_play_arrow_24"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintStart_toEndOf="@id/btnList" />
+
+    <com.google.android.material.button.MaterialButton
+        android:id="@+id/btnToggleWaypoints"
+        style="@style/Widget.Material3.Button.IconButton.Filled.Tonal"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="@dimen/top_button_margin"
+        android:layout_marginStart="@dimen/top_button_gap"
+        android:contentDescription="@string/waypoints_toggle"
+        app:icon="@drawable/ic_waypoints_24"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintStart_toEndOf="@id/btnTrack" />
+
+    <com.google.android.material.button.MaterialButton
+        android:id="@+id/btnLayers"
+        style="@style/Widget.Material3.Button.IconButton.Filled.Tonal"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="@dimen/top_button_margin"
+        android:layout_marginStart="@dimen/top_button_gap"
+        android:contentDescription="@string/layers_toggle"
+        app:icon="@drawable/ic_layers_24"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintStart_toEndOf="@id/btnToggleWaypoints" />
+
+    <com.google.android.material.button.MaterialButton
+        android:id="@+id/btnMoving"
+        style="@style/Widget.Material3.Button.IconButton.Filled.Tonal"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_margin="@dimen/top_button_margin"
+        android:checkable="true"
+        android:contentDescription="@string/mode_moving"
+        app:icon="@drawable/ic_directions_walk_24"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintEnd_toStartOf="@id/guideMid" />
+
+    <!-- Індикатор повороту карти. Тап — скинути поворот на північ. -->
+    <ImageView
+        android:id="@+id/ivCompass"
+        android:layout_width="48dp"
+        android:layout_height="48dp"
+        android:layout_marginTop="@dimen/top_button_gap"
+        android:layout_marginEnd="@dimen/top_button_margin"
+        android:background="?attr/selectableItemBackgroundBorderless"
+        android:clickable="true"
+        android:focusable="true"
+        android:contentDescription="@string/compass_reset"
+        android:padding="6dp"
+        android:scaleType="fitCenter"
+        android:src="@drawable/ic_explore_24"
+        app:layout_constraintEnd_toStartOf="@id/guideMid"
+        app:layout_constraintTop_toBottomOf="@id/btnMoving" />
+
+    <com.google.android.material.floatingactionbutton.FloatingActionButton
+        android:id="@+id/btnAddWaypoint"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_margin="@dimen/fab_margin"
+        android:contentDescription="@string/crosshair_add_waypoint"
+        android:src="@drawable/ic_waypoints_24"
+        app:fabSize="mini"
+        app:layout_constraintBottom_toTopOf="@id/fabCenter"
+        app:layout_constraintEnd_toStartOf="@id/guideMid" />
+
+    <com.google.android.material.floatingactionbutton.FloatingActionButton
+        android:id="@+id/fabCenter"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_margin="@dimen/fab_margin"
+        android:contentDescription="@string/center_on_me"
+        android:src="@drawable/ic_my_location_24"
+        app:fabSize="mini"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toStartOf="@id/guideMid" />
+
+
+    <!-- Права колонка: картка + кнопка локалізації -->
+    <com.google.android.material.card.MaterialCardView
+        android:id="@+id/cardCoords"
+        android:layout_width="0dp"
+        android:layout_height="0dp"
+        android:layout_margin="@dimen/screen_padding"
+        app:cardCornerRadius="@dimen/card_corner"
+        app:cardElevation="@dimen/card_elevation"
+        app:layout_constrainedHeight="true"
+        app:layout_constraintBottom_toTopOf="@id/btnLocate"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toEndOf="@id/guideMid">
+
+        <androidx.core.widget.NestedScrollView
+            android:id="@+id/scrollCoords"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:fillViewport="true">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:padding="@dimen/card_padding">
+
+                <LinearLayout
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_gravity="center_horizontal"
+                    android:layout_marginBottom="4dp"
+                    android:gravity="center"
+                    android:orientation="vertical">
+
+                    <View
+                        android:id="@+id/coordsHandle"
+                        android:layout_width="52dp"
+                        android:layout_height="5dp"
+                        android:background="@drawable/bg_coords_handle"
+                        android:contentDescription="@string/coords_collapse_toggle" />
+
+                    <ImageView
+                        android:id="@+id/ivCoordsChevron"
+                        android:layout_width="20dp"
+                        android:layout_height="20dp"
+                        android:layout_marginTop="2dp"
+                        android:contentDescription="@string/coords_collapse_toggle"
+                        android:src="@drawable/ic_expand_more_24" />
+                </LinearLayout>
+
+                <TextView
+                    android:id="@+id/tvCoords"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:background="?attr/selectableItemBackground"
+                    android:clickable="true"
+                    android:focusable="true"
+                    android:padding="6dp"
+                    android:fontFamily="monospace"
+                    android:textIsSelectable="true"
+                    android:text="@string/press_button_hint"
+                    android:textStyle="bold"
+                    android:textSize="@dimen/mgrs_text_size" />
+
+                <LinearLayout
+                    android:id="@+id/coordsExpandable"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="8dp"
+                    android:orientation="horizontal">
+
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/btnCopy"
+                        style="@style/Widget.Material3.Button.TonalButton"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:layout_marginEnd="6dp"
+                        android:text="@string/btn_copy"
+                        android:visibility="gone" />
+
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/btnShare"
+                        style="@style/Widget.Material3.Button.TonalButton"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:layout_marginStart="6dp"
+                        android:text="@string/btn_share"
+                        android:visibility="gone" />
+                </LinearLayout>
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="6dp"
+                    android:orientation="horizontal">
+
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/btnSave"
+                        style="@style/Widget.Material3.Button.TonalButton"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:layout_marginEnd="6dp"
+                        android:text="@string/btn_save"
+                        android:visibility="gone" />
+
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/btnGotoCoords"
+                        style="@style/Widget.Material3.Button.TonalButton"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:layout_marginStart="6dp"
+                        android:text="@string/btn_goto_coords"
+                        app:icon="@drawable/ic_place_search_24" />
+                </LinearLayout>
+
+                <View
+                    android:layout_width="match_parent"
+                    android:layout_height="1dp"
+                    android:layout_marginTop="8dp"
+                    android:layout_marginBottom="6dp"
+                    android:background="?android:attr/dividerHorizontal" />
+
+                <TextView
+                    android:id="@+id/tvGnss"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:fontFamily="monospace"
+                    android:textSize="@dimen/info_text_size"
+                    android:textColor="?android:attr/textColorSecondary"
+                    android:text="@string/gnss_idle" />
+
+                <TextView
+                    android:id="@+id/tvSensors"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:fontFamily="monospace"
+                    android:textSize="@dimen/info_text_size"
+                    android:textColor="?android:attr/textColorSecondary"
+                    android:text="@string/sensors_idle" />
+
+                <TextView
+                    android:id="@+id/tvNav"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:fontFamily="monospace"
+                    android:textSize="@dimen/nav_text_size"
+                    android:textColor="?android:attr/textColorPrimary"
+                    android:visibility="gone" />
+                </LinearLayout>
+            </LinearLayout>
+        </androidx.core.widget.NestedScrollView>
+    </com.google.android.material.card.MaterialCardView>
+
+    <com.google.android.material.button.MaterialButton
+        android:id="@+id/btnLocate"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_margin="@dimen/screen_padding"
+        android:minHeight="@dimen/locate_min_height"
+        android:padding="@dimen/locate_padding"
+        android:textSize="@dimen/locate_text_size"
+        android:text="@string/btn_locate"
+        app:icon="@drawable/ic_my_location_24"
+        app:iconSize="@dimen/locate_icon_size"
+        app:cornerRadius="@dimen/locate_corner_radius"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toEndOf="@id/guideMid" />
+
+</androidx.constraintlayout.widget.ConstraintLayout>

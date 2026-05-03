@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Адаптивні розміри. Базові значення для маленьких екранів (sw320..sw359). -->
+    <dimen name="screen_padding">10dp</dimen>
+    <dimen name="card_padding">12dp</dimen>
+    <dimen name="card_corner">12dp</dimen>
+    <dimen name="card_elevation">6dp</dimen>
+
+    <!-- Розмір MGRS-тексту і кнопок -->
+    <dimen name="mgrs_text_size">16sp</dimen>
+    <dimen name="locate_text_size">16sp</dimen>
+    <dimen name="locate_min_height">56dp</dimen>
+    <dimen name="locate_padding">14dp</dimen>
+    <dimen name="locate_icon_size">24dp</dimen>
+    <dimen name="locate_corner_radius">28dp</dimen>
+
+    <dimen name="info_text_size">12sp</dimen>
+    <dimen name="nav_text_size">13sp</dimen>
+
+    <dimen name="top_button_margin">10dp</dimen>
+    <dimen name="top_button_gap">4dp</dimen>
+    <dimen name="fab_margin">14dp</dimen>
+
+    <!-- Скільки максимально висоти може зайняти картка координат (% від висоти екрану) -->
+    <item name="card_max_height_percent" type="dimen" format="float">0.50</item>
+</resources>

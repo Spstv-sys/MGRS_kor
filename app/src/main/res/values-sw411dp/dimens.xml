@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Типовий 6.67" телефон (~411..420dp ширини портрет). -->
+<resources>
+    <dimen name="screen_padding">12dp</dimen>
+    <dimen name="card_padding">14dp</dimen>
+
+    <dimen name="mgrs_text_size">18sp</dimen>
+    <dimen name="locate_text_size">18sp</dimen>
+    <dimen name="locate_min_height">64dp</dimen>
+    <dimen name="locate_padding">18dp</dimen>
+    <dimen name="locate_icon_size">28dp</dimen>
+    <dimen name="locate_corner_radius">32dp</dimen>
+
+    <dimen name="info_text_size">13sp</dimen>
+    <dimen name="nav_text_size">14sp</dimen>
+
+    <dimen name="top_button_margin">12dp</dimen>
+    <dimen name="top_button_gap">6dp</dimen>
+    <dimen name="fab_margin">16dp</dimen>
+
+    <item name="card_max_height_percent" type="dimen" format="float">0.45</item>
+</resources>
