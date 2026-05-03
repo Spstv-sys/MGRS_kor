@@ -861,8 +861,9 @@ class MainActivity : AppCompatActivity() {
         // Активний стан кнопки вейпойнтів — якщо вони відображаються на карті.
         setButtonActive(binding.btnToggleWaypoints, points.isNotEmpty())
         for (p in points) {
+            val pos = GeoPoint(p.latitude, p.longitude)
             val m = Marker(binding.map).apply {
-                position = GeoPoint(p.latitude, p.longitude)
+                position = pos
                 title = p.name
                 snippet = p.mgrs
                 setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_BOTTOM)
@@ -881,8 +882,60 @@ class MainActivity : AppCompatActivity() {
                 }
             }
             waypointsFolder.add(m)
+
+            // Підпис із назвою орієнтира — окремий «маркер»-бітмап нижче піна.
+            val labelBitmap = buildWaypointLabelBitmap(p.name)
+            val label = Marker(binding.map).apply {
+                position = pos
+                setAnchor(Marker.ANCHOR_CENTER, 0f)
+                icon = android.graphics.drawable.BitmapDrawable(resources, labelBitmap)
+                setInfoWindow(null)
+                setOnMarkerClickListener { _, _ ->
+                    promptNavigateTo(p)
+                    true
+                }
+            }
+            waypointsFolder.add(label)
         }
         binding.map.invalidate()
+    }
+
+    /**
+     * Бітмап з назвою орієнтира: білий текст з чорною обводкою —
+     * добре читається і на світлих, і на темних ділянках мапи.
+     */
+    private fun buildWaypointLabelBitmap(text: String): android.graphics.Bitmap {
+        val density = resources.displayMetrics.density
+        val textSizePx = 13f * density
+        val padX = 4f * density
+        val padY = 2f * density
+        val strokeWidth = 3f * density
+
+        val fillPaint = android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG).apply {
+            color = android.graphics.Color.WHITE
+            textSize = textSizePx
+            typeface = android.graphics.Typeface.DEFAULT_BOLD
+            textAlign = android.graphics.Paint.Align.CENTER
+        }
+        val strokePaint = android.graphics.Paint(fillPaint).apply {
+            style = android.graphics.Paint.Style.STROKE
+            this.strokeWidth = strokeWidth
+            color = android.graphics.Color.BLACK
+        }
+
+        val width = (fillPaint.measureText(text) + padX * 2f).toInt().coerceAtLeast(1)
+        val fm = fillPaint.fontMetrics
+        val height = (fm.descent - fm.ascent + padY * 2f).toInt().coerceAtLeast(1)
+
+        val bmp = android.graphics.Bitmap.createBitmap(
+            width, height, android.graphics.Bitmap.Config.ARGB_8888
+        )
+        val canvas = android.graphics.Canvas(bmp)
+        val baseline = padY - fm.ascent
+        val cx = width / 2f
+        canvas.drawText(text, cx, baseline, strokePaint)
+        canvas.drawText(text, cx, baseline, fillPaint)
+        return bmp
     }
 
     private fun promptNavigateTo(p: com.example.mgrskor.data.SavedPoint) {
