@@ -868,7 +868,13 @@ class MainActivity : AppCompatActivity() {
                 setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_BOTTOM)
                 icon = androidx.core.content.ContextCompat.getDrawable(
                     this@MainActivity, R.drawable.ic_location_on_24
-                )
+                )?.mutate()?.also { d ->
+                    // Контрастний до зеленої мапи маджента-рожевий — добре видно
+                    // як на світлих, так і на темних ділянках.
+                    androidx.core.graphics.drawable.DrawableCompat.setTint(
+                        d, android.graphics.Color.parseColor("#FF1493")
+                    )
+                }
                 setOnMarkerClickListener { _, _ ->
                     promptNavigateTo(p)
                     true
