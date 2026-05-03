@@ -197,7 +197,10 @@ class MainActivity : AppCompatActivity() {
             promptExportTrack()
             true
         }
-        binding.btnAddWaypoint.setOnClickListener { promptSaveCrosshairPoint() }
+        binding.btnAddWaypoint.setOnClickListener {
+            android.util.Log.i("MGRS_KOR", "btnAddWaypoint clicked")
+            promptSaveCrosshairPoint()
+        }
         binding.btnToggleWaypoints.setOnClickListener {
             viewModel.toggleWaypointsOnMap()
         }
@@ -300,7 +303,22 @@ class MainActivity : AppCompatActivity() {
                     viewModel.savedPoints,
                     viewModel.showWaypointsOnMap
                 ) { pts, show -> pts to show }.collect { (pts, show) ->
+                    android.util.Log.i(
+                        "MGRS_KOR",
+                        "savedPoints flow emit: count=${pts.size} show=$show"
+                    )
                     renderWaypoints(if (show) pts else emptyList())
+                }
+            }
+        }
+        lifecycleScope.launch {
+            repeatOnLifecycle(Lifecycle.State.STARTED) {
+                viewModel.saveError.collect { msg ->
+                    Toast.makeText(
+                        this@MainActivity,
+                        "Save error: $msg",
+                        Toast.LENGTH_LONG
+                    ).show()
                 }
             }
         }
@@ -1000,6 +1018,7 @@ class MainActivity : AppCompatActivity() {
             .setView(input)
             .setPositiveButton(R.string.save_action) { _, _ ->
                 viewModel.saveCurrentResult(input.text?.toString().orEmpty())
+                viewModel.setWaypointsVisible(true)
                 Toast.makeText(this, R.string.saved, Toast.LENGTH_SHORT).show()
             }
             .setNegativeButton(android.R.string.cancel, null)
@@ -1027,6 +1046,7 @@ class MainActivity : AppCompatActivity() {
                     longitude = center.longitude,
                     mgrs = mgrs
                 )
+                viewModel.setWaypointsVisible(true)
                 Toast.makeText(this, R.string.crosshair_saved, Toast.LENGTH_SHORT).show()
             }
             .setNegativeButton(android.R.string.cancel, null)

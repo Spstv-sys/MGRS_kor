@@ -45,6 +45,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     private val _showWaypointsOnMap = MutableStateFlow(true)
     val showWaypointsOnMap: StateFlow<Boolean> = _showWaypointsOnMap.asStateFlow()
     fun toggleWaypointsOnMap() { _showWaypointsOnMap.value = !_showWaypointsOnMap.value }
+    fun setWaypointsVisible(visible: Boolean) { _showWaypointsOnMap.value = visible }
 
     /** Обрана ціль для навігації (Go-to), null якщо немає. */
     private val _navTarget = MutableStateFlow<NavTarget?>(null)
@@ -191,25 +192,37 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         latitude: Double,
         longitude: Double,
         mgrs: String = MgrsFormatter.format(latitude, longitude, GridType.METER),
-        accuracyMeters: Float = Float.NaN,
+        accuracyMeters: Float = 0f,
         satellitesUsed: Int = 0,
-        avgCn0: Float = Float.NaN
+        avgCn0: Float = 0f
     ) {
         viewModelScope.launch {
-            dao.insert(
-                SavedPoint(
-                    name = name.ifBlank { defaultPointName() },
-                    latitude = latitude,
-                    longitude = longitude,
-                    mgrs = mgrs,
-                    accuracyMeters = accuracyMeters,
-                    satellitesUsed = satellitesUsed,
-                    avgCn0 = avgCn0,
-                    timestampMs = System.currentTimeMillis()
+            try {
+                val id = dao.insert(
+                    SavedPoint(
+                        name = name.ifBlank { defaultPointName() },
+                        latitude = latitude,
+                        longitude = longitude,
+                        mgrs = mgrs,
+                        accuracyMeters = accuracyMeters,
+                        satellitesUsed = satellitesUsed,
+                        avgCn0 = avgCn0,
+                        timestampMs = System.currentTimeMillis()
+                    )
                 )
-            )
+                android.util.Log.i(
+                    "MGRS_KOR",
+                    "savePoint OK id=$id name=$name lat=$latitude lon=$longitude"
+                )
+            } catch (t: Throwable) {
+                android.util.Log.e("MGRS_KOR", "savePoint FAILED", t)
+                _saveError.emit(t.message ?: t::class.java.simpleName)
+            }
         }
     }
+
+    private val _saveError = kotlinx.coroutines.flow.MutableSharedFlow<String>(extraBufferCapacity = 1)
+    val saveError: kotlinx.coroutines.flow.SharedFlow<String> = _saveError
 
     fun deletePoint(point: SavedPoint) {
         viewModelScope.launch { dao.delete(point) }

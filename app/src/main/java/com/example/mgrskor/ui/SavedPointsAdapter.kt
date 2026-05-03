@@ -34,7 +34,7 @@ class SavedPointsAdapter(
         fun bind(p: SavedPoint) {
             b.tvName.text = p.name
             b.tvMgrs.text = p.mgrs
-            b.tvMeta.text = if (p.accuracyMeters.isNaN() || p.satellitesUsed <= 0) {
+            b.tvMeta.text = if (p.satellitesUsed <= 0 || p.accuracyMeters.isNaN() || p.accuracyMeters <= 0f) {
                 b.root.context.getString(
                     R.string.saved_meta_manual,
                     timeFmt.format(Date(p.timestampMs))
