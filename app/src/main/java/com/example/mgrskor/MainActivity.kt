@@ -47,6 +47,7 @@ class MainActivity : AppCompatActivity() {
     private var trackPolyline: Polyline? = null
     private var navPolyline: Polyline? = null
     private var routePolyline: Polyline? = null
+    private var routeCasingPolyline: Polyline? = null
     /** Останній прокладений маршрут — для GPX-експорту / turn-by-turn. */
     private var lastRoute: Routing.Route? = null
     private val waypointsFolder = FolderOverlay()
@@ -580,6 +581,10 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun removeRoutePolyline() {
+        routeCasingPolyline?.let {
+            binding.map.overlays.remove(it)
+            routeCasingPolyline = null
+        }
         routePolyline?.let {
             binding.map.overlays.remove(it)
             routePolyline = null
@@ -887,17 +892,50 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun drawRoutePolyline(points: List<GeoPoint>) {
-        val line = routePolyline ?: Polyline(binding.map).apply {
-            outlinePaint.color = 0xFF2E7D32.toInt() // насичений зелений — маршрут по дорогах
-            outlinePaint.strokeWidth = 10f
+        if (points.isEmpty()) {
+            android.util.Log.w("Routing", "drawRoutePolyline: EMPTY points list — нічого малювати")
+            return
+        }
+        // Біла «оправа» для контрасту на будь-якому фоні (під зеленою лінією).
+        val casing = routeCasingPolyline ?: Polyline(binding.map).apply {
+            outlinePaint.style = android.graphics.Paint.Style.STROKE
+            outlinePaint.color = 0xFFFFFFFF.toInt()
+            outlinePaint.strokeWidth = 18f
             outlinePaint.strokeCap = android.graphics.Paint.Cap.ROUND
             outlinePaint.strokeJoin = android.graphics.Paint.Join.ROUND
-            // Нижче маркерів, але вище фон-полігонів
-            binding.map.overlays.add(0, this)
+            outlinePaint.isAntiAlias = true
+            routeCasingPolyline = this
+        }
+        val line = routePolyline ?: Polyline(binding.map).apply {
+            outlinePaint.style = android.graphics.Paint.Style.STROKE
+            outlinePaint.color = 0xFF2E7D32.toInt() // насичений зелений — маршрут по дорогах
+            outlinePaint.strokeWidth = 12f
+            outlinePaint.strokeCap = android.graphics.Paint.Cap.ROUND
+            outlinePaint.strokeJoin = android.graphics.Paint.Join.ROUND
+            outlinePaint.isAntiAlias = true
             routePolyline = this
         }
+        // ще раз гарантовано виставимо стиль/колір на випадок переюзу
+        casing.outlinePaint.style = android.graphics.Paint.Style.STROKE
+        casing.outlinePaint.color = 0xFFFFFFFF.toInt()
+        casing.outlinePaint.strokeWidth = 18f
+        line.outlinePaint.style = android.graphics.Paint.Style.STROKE
+        line.outlinePaint.color = 0xFF2E7D32.toInt()
+        line.outlinePaint.strokeWidth = 12f
+        casing.setPoints(points)
         line.setPoints(points)
-        binding.map.invalidate()
+        // Гарантовано виводимо обидва шари НА САМОМУ ВЕРХУ оверлеїв.
+        binding.map.overlays.remove(casing)
+        binding.map.overlays.remove(line)
+        binding.map.overlays.add(casing)
+        binding.map.overlays.add(line)
+        val first = points.first()
+        val last = points.last()
+        android.util.Log.d(
+            "Routing",
+            "drawRoutePolyline: pts=${points.size} first=(${first.latitude},${first.longitude}) last=(${last.latitude},${last.longitude}) overlays=${binding.map.overlays.size}"
+        )
+        binding.map.postInvalidate()
     }
 
     private fun currentGeoPoint(): GeoPoint? {

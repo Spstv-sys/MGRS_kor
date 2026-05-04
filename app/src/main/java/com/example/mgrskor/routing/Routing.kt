@@ -37,7 +37,7 @@ object Routing {
         CAR_FAST("car-fast", "Авто (усі дороги)"),
         TREKKING("trekking", "Велосипед / треки"),
         SHORTEST("shortest", "Найкоротший"),
-        HIKING("hiking-mountain", "Пішки")
+        HIKING("hiking-beta", "Пішки")
     }
 
     /** Розшифровані команди поворотів (BRouter VoiceHint). */
