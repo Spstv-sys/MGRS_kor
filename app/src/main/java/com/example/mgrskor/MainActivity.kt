@@ -23,6 +23,7 @@ import com.example.mgrskor.map.MapLayers
 import com.example.mgrskor.map.MapRotationOverlay
 import com.example.mgrskor.map.OfflineTiles
 import com.example.mgrskor.mgrs.MgrsFormatter
+import com.example.mgrskor.routing.Routing
 import com.example.mgrskor.ui.MainViewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -45,6 +46,9 @@ class MainActivity : AppCompatActivity() {
     private var currentMarker: Marker? = null
     private var trackPolyline: Polyline? = null
     private var navPolyline: Polyline? = null
+    private var routePolyline: Polyline? = null
+    /** Останній прокладений маршрут — для GPX-експорту / turn-by-turn. */
+    private var lastRoute: Routing.Route? = null
     private val waypointsFolder = FolderOverlay()
 
     /**
@@ -85,6 +89,12 @@ class MainActivity : AppCompatActivity() {
         ActivityResultContracts.CreateDocument("application/gpx+xml")
     ) { uri ->
         if (uri != null) writeTrackToUri(uri)
+    }
+
+    private val createRouteGpx = registerForActivityResult(
+        ActivityResultContracts.CreateDocument("application/gpx+xml")
+    ) { uri ->
+        if (uri != null) writeRouteToUri(uri)
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -128,6 +138,20 @@ class MainActivity : AppCompatActivity() {
         }
         rotationOverlay.isEnabled = true
         binding.map.overlays.add(rotationOverlay)
+
+        // Long-press на карті → «Прокласти маршрут сюди» без створення вейпойнта.
+        val mapEvents = org.osmdroid.views.overlay.MapEventsOverlay(
+            object : org.osmdroid.events.MapEventsReceiver {
+                override fun singleTapConfirmedHelper(p: GeoPoint?): Boolean = false
+                override fun longPressHelper(p: GeoPoint?): Boolean {
+                    if (p == null) return false
+                    onMapLongPress(p)
+                    return true
+                }
+            }
+        )
+        // Додаємо ПЕРШИМ, щоб жести на маркерах перехоплювали лонг-преси на порожніх місцях.
+        binding.map.overlays.add(0, mapEvents)
 
         // Будь-який жест користувача по карті вимикає автоцентрування.
         // Це дозволяє вільно рухати картою, поки йде збір координат.
@@ -487,6 +511,7 @@ class MainActivity : AppCompatActivity() {
         if (target == null) {
             setNavVisible(false)
             removeNavPolyline()
+            removeRoutePolyline()
             return
         }
         val from = ui.preview ?: ui.lastResult?.let {
@@ -554,6 +579,327 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    private fun removeRoutePolyline() {
+        routePolyline?.let {
+            binding.map.overlays.remove(it)
+            routePolyline = null
+        }
+        lastRoute = null
+        binding.map.invalidate()
+    }
+
+    private fun promptRouteToTarget() {
+        val target = viewModel.navTarget.value
+        if (target == null) {
+            Toast.makeText(this, R.string.route_need_target, Toast.LENGTH_SHORT).show()
+            return
+        }
+        val from = currentGeoPoint()
+        if (from == null) {
+            Toast.makeText(this, R.string.route_need_fix, Toast.LENGTH_SHORT).show()
+            return
+        }
+        promptRouteTo(from, GeoPoint(target.latitude, target.longitude))
+    }
+
+    /** Long-press на пустому місці карти → діалог «Прокласти маршрут сюди». */
+    private fun onMapLongPress(p: GeoPoint) {
+        val from = currentGeoPoint() ?: run {
+            Toast.makeText(this, R.string.route_need_fix, Toast.LENGTH_SHORT).show()
+            return
+        }
+        val mgrs = runCatching {
+            MgrsFormatter.format(p.latitude, p.longitude, GridType.METER)
+        }.getOrDefault("—")
+        val latLon = String.format(Locale.US, "%.5f, %.5f", p.latitude, p.longitude)
+        com.google.android.material.dialog.MaterialAlertDialogBuilder(this)
+            .setTitle(R.string.map_long_press_route_title)
+            .setMessage(getString(R.string.map_long_press_route_msg, mgrs, latLon))
+            .setPositiveButton(R.string.map_long_press_route_action) { _, _ ->
+                promptRouteTo(from, p)
+            }
+            .setNegativeButton(android.R.string.cancel, null)
+            .show()
+    }
+
+    /** Спільний діалог «вибору профілю + режиму». */
+    private fun promptRouteTo(from: GeoPoint, to: GeoPoint) {
+        val profiles = Routing.Profile.values()
+        val labels = profiles.map { it.displayName }.toTypedArray()
+        com.google.android.material.dialog.MaterialAlertDialogBuilder(this)
+            .setTitle(R.string.route_pick_profile)
+            .setItems(labels) { _, idx ->
+                val profile = profiles[idx]
+                pickRouteMode(from, to, profile)
+            }
+            .setNegativeButton(android.R.string.cancel, null)
+            .show()
+    }
+
+    private fun pickRouteMode(from: GeoPoint, to: GeoPoint, profile: Routing.Profile) {
+        // Динамічні варіанти. Онлайн завжди; вбудоване ядро — якщо є; окремий BRouter app — якщо є.
+        data class Mode(val label: String, val run: () -> Unit)
+        val modes = mutableListOf<Mode>()
+        modes += Mode(getString(R.string.route_mode_online)) {
+            computeAndDrawRouteOnline(from, to, profile)
+        }
+        if (Routing.isOfflineCoreAvailable()) {
+            modes += Mode(getString(R.string.route_mode_offline_core)) {
+                computeAndDrawRouteOffline(from, to, profile)
+            }
+        }
+        if (Routing.isOfflineAvailable(this)) {
+            modes += Mode(getString(R.string.route_mode_offline)) {
+                Routing.launchOfflineApp(this, from, to, profile)
+            }
+        }
+        android.util.Log.d("Routing", "pickRouteMode: profile=${profile.id} modes=${modes.map { it.label }}")
+        if (modes.size == 1) {
+            modes[0].run()
+            return
+        }
+        val labels = modes.map { it.label }.toTypedArray()
+        com.google.android.material.dialog.MaterialAlertDialogBuilder(this)
+            .setTitle(R.string.route_pick_mode)
+            .setItems(labels) { _, i -> modes[i].run() }
+            .setNegativeButton(android.R.string.cancel, null)
+            .show()
+    }
+
+    private fun computeAndDrawRouteOffline(from: GeoPoint, to: GeoPoint, profile: Routing.Profile) {
+        val progress = showRouteProgressDialog()
+        lifecycleScope.launch {
+            val result = runCatching {
+                com.example.mgrskor.routing.Routing.computeRouteOfflineCore(
+                    this@MainActivity, from, to, profile
+                )
+            }
+            progress.dismiss()
+            result.onSuccess { route ->
+                lastRoute = route
+                drawRoutePolyline(route.points)
+                val pts = route.points
+                if (pts.size >= 2) {
+                    val box = org.osmdroid.util.BoundingBox.fromGeoPointsSafe(pts)
+                    binding.map.post { binding.map.zoomToBoundingBox(box, true, 96) }
+                }
+                Toast.makeText(
+                    this@MainActivity,
+                    getString(
+                        R.string.route_done,
+                        formatDistance(route.distanceMeters),
+                        "офлайн"
+                    ),
+                    Toast.LENGTH_LONG
+                ).show()
+            }.onFailure { e ->
+                showRouteErrorDialog(e)
+            }
+        }
+    }
+
+    /** Невідмінний прогрес-діалог зі спінером на час обчислення маршруту. */
+    private fun showRouteProgressDialog(): androidx.appcompat.app.AlertDialog {
+        val pad = (resources.displayMetrics.density * 16).toInt()
+        val pb = android.widget.ProgressBar(this).apply {
+            isIndeterminate = true
+        }
+        val tv = android.widget.TextView(this).apply {
+            text = getString(R.string.route_computing)
+            setPadding(pad, 0, pad, 0)
+        }
+        val row = android.widget.LinearLayout(this).apply {
+            orientation = android.widget.LinearLayout.HORIZONTAL
+            gravity = android.view.Gravity.CENTER_VERTICAL
+            setPadding(pad, pad, pad, pad)
+            addView(pb, android.widget.LinearLayout.LayoutParams(
+                (resources.displayMetrics.density * 32).toInt(),
+                (resources.displayMetrics.density * 32).toInt()))
+            addView(tv, android.widget.LinearLayout.LayoutParams(
+                android.widget.LinearLayout.LayoutParams.WRAP_CONTENT,
+                android.widget.LinearLayout.LayoutParams.WRAP_CONTENT))
+        }
+        return com.google.android.material.dialog.MaterialAlertDialogBuilder(this)
+            .setView(row)
+            .setCancelable(false)
+            .show()
+    }
+
+    private fun showRouteErrorDialog(e: Throwable) {
+        com.google.android.material.dialog.MaterialAlertDialogBuilder(this)
+            .setTitle(R.string.route_failed_title)
+            .setMessage(getString(R.string.route_failed, e.message ?: e.javaClass.simpleName))
+            .setPositiveButton(android.R.string.ok, null)
+            .show()
+    }
+
+    private fun computeAndDrawRouteOnline(from: GeoPoint, to: GeoPoint, profile: Routing.Profile) {
+        android.util.Log.d("Routing", "computeAndDrawRouteOnline: from=${from.latitude},${from.longitude} to=${to.latitude},${to.longitude} profile=${profile.id}")
+        val progress = showRouteProgressDialog()
+        lifecycleScope.launch {
+            val result = runCatching { Routing.computeRouteOnline(from, to, profile) }
+            progress.dismiss()
+            result.onSuccess { route ->
+                android.util.Log.d("Routing", "online OK: pts=${route.points.size} dist=${route.distanceMeters}")
+                lastRoute = route
+                drawRoutePolyline(route.points)
+                val durMin = (route.durationSeconds / 60.0).toInt()
+                val durText = when {
+                    durMin <= 0 -> "<1 хв"
+                    durMin < 60 -> "$durMin хв"
+                    else -> String.format(Locale.US, "%d год %d хв", durMin / 60, durMin % 60)
+                }
+                Toast.makeText(
+                    this@MainActivity,
+                    getString(R.string.route_done, formatDistance(route.distanceMeters), durText),
+                    Toast.LENGTH_LONG
+                ).show()
+                val pts = route.points
+                if (pts.size >= 2) {
+                    val box = org.osmdroid.util.BoundingBox.fromGeoPointsSafe(pts)
+                    binding.map.post { binding.map.zoomToBoundingBox(box, true, 96) }
+                }
+            }.onFailure { e ->
+                android.util.Log.e("Routing", "online FAIL", e)
+                showRouteErrorDialog(e)
+            }
+        }
+    }
+
+    private fun showRouteHintsDialog() {
+        val r = lastRoute
+        if (r == null) {
+            Toast.makeText(this, R.string.route_export_none, Toast.LENGTH_SHORT).show()
+            return
+        }
+        if (r.hints.isEmpty()) {
+            Toast.makeText(this, R.string.route_no_hints, Toast.LENGTH_SHORT).show()
+            return
+        }
+        val items = r.hints.mapIndexed { i, h ->
+            val dist = formatDistance(h.distanceMeters)
+            "${i + 1}. через $dist — ${h.kind.ua}"
+        }.toTypedArray()
+        com.google.android.material.dialog.MaterialAlertDialogBuilder(this)
+            .setTitle(R.string.route_hints_title)
+            .setItems(items, null)
+            .setPositiveButton(android.R.string.ok, null)
+            .show()
+    }
+
+    private fun writeRouteToUri(uri: android.net.Uri) {
+        val r = lastRoute ?: run {
+            Toast.makeText(this, R.string.route_export_none, Toast.LENGTH_SHORT).show()
+            return
+        }
+        lifecycleScope.launch {
+            val ok = withContext(Dispatchers.IO) {
+                runCatching {
+                    val gpx = Routing.routeToGpx(r)
+                    contentResolver.openOutputStream(uri, "w")?.use {
+                        it.write(gpx.toByteArray())
+                    } ?: error("openOutputStream returned null")
+                }.isSuccess
+            }
+            Toast.makeText(
+                this@MainActivity,
+                if (ok) R.string.export_done else R.string.export_failed,
+                Toast.LENGTH_SHORT
+            ).show()
+        }
+    }
+
+    /** Завантажити rd5-сегменти для поточного видимого боксу карти. */
+    private fun promptDownloadOfflineSegments() {
+        val box = binding.map.boundingBox
+        val segs = com.example.mgrskor.routing.SegmentDownloader.listSegmentsForBox(box)
+        if (segs.isEmpty()) {
+            Toast.makeText(this,
+                getString(R.string.route_offline_segments_failed, "порожній bbox"),
+                Toast.LENGTH_SHORT).show()
+            return
+        }
+        com.google.android.material.dialog.MaterialAlertDialogBuilder(this)
+            .setTitle(R.string.route_offline_segments_title)
+            .setMessage(getString(R.string.route_offline_segments_msg, segs.size))
+            .setPositiveButton(android.R.string.ok) { _, _ -> downloadOfflineSegments(box) }
+            .setNegativeButton(android.R.string.cancel, null)
+            .show()
+    }
+
+    private fun downloadOfflineSegments(box: org.osmdroid.util.BoundingBox) {
+        val progressBar = com.google.android.material.progressindicator.LinearProgressIndicator(this).apply {
+            isIndeterminate = false
+            max = 100
+        }
+        val msgView = android.widget.TextView(this).apply {
+            text = ""
+            setPadding(48, 24, 48, 8)
+        }
+        val container = android.widget.LinearLayout(this).apply {
+            orientation = android.widget.LinearLayout.VERTICAL
+            setPadding(24, 24, 24, 24)
+            addView(msgView)
+            addView(progressBar)
+        }
+        val dlg = com.google.android.material.dialog.MaterialAlertDialogBuilder(this)
+            .setTitle(R.string.route_offline_segments_title)
+            .setView(container)
+            .setCancelable(false)
+            .create()
+        dlg.show()
+        lifecycleScope.launch {
+            val result = withContext(Dispatchers.IO) {
+                com.example.mgrskor.routing.SegmentDownloader.download(
+                    this@MainActivity, box
+                ) { cur, total, name ->
+                    runOnUiThread {
+                        progressBar.progress = (cur * 100 / total).coerceIn(0, 100)
+                        msgView.text = getString(
+                            R.string.route_offline_segments_progress, cur, total, name
+                        )
+                    }
+                }
+            }
+            dlg.dismiss()
+            when (result) {
+                is com.example.mgrskor.routing.SegmentDownloader.Result.Ok -> {
+                    Toast.makeText(
+                        this@MainActivity,
+                        getString(
+                            R.string.route_offline_segments_done,
+                            result.downloaded,
+                            result.skipped,
+                            formatDistance(result.totalBytes.toDouble())
+                        ),
+                        Toast.LENGTH_LONG
+                    ).show()
+                }
+                is com.example.mgrskor.routing.SegmentDownloader.Result.Failed -> {
+                    Toast.makeText(
+                        this@MainActivity,
+                        getString(R.string.route_offline_segments_failed, result.message),
+                        Toast.LENGTH_LONG
+                    ).show()
+                }
+            }
+        }
+    }
+
+    private fun drawRoutePolyline(points: List<GeoPoint>) {
+        val line = routePolyline ?: Polyline(binding.map).apply {
+            outlinePaint.color = 0xFF2E7D32.toInt() // насичений зелений — маршрут по дорогах
+            outlinePaint.strokeWidth = 10f
+            outlinePaint.strokeCap = android.graphics.Paint.Cap.ROUND
+            outlinePaint.strokeJoin = android.graphics.Paint.Join.ROUND
+            // Нижче маркерів, але вище фон-полігонів
+            binding.map.overlays.add(0, this)
+            routePolyline = this
+        }
+        line.setPoints(points)
+        binding.map.invalidate()
+    }
+
     private fun currentGeoPoint(): GeoPoint? {
         val s = viewModel.ui.value
         val from = s.preview ?: s.lastResult?.let {
@@ -570,8 +916,38 @@ class MainActivity : AppCompatActivity() {
                 R.id.action_offline_download -> {
                     OfflineTiles.promptDownloadVisibleArea(this, binding.map); true
                 }
+                R.id.action_offline_manage -> {
+                    OfflineTiles.promptManageRegions(this, binding.map); true
+                }
                 R.id.action_offline_clear -> {
                     OfflineTiles.promptClearCache(this, binding.map); true
+                }
+                R.id.action_route_to_target -> {
+                    promptRouteToTarget(); true
+                }
+                R.id.action_route_clear -> {
+                    if (routePolyline != null || lastRoute != null) {
+                        removeRoutePolyline()
+                        Toast.makeText(this, R.string.route_cleared, Toast.LENGTH_SHORT).show()
+                    }
+                    true
+                }
+                R.id.action_route_export -> {
+                    val r = lastRoute
+                    if (r == null) {
+                        Toast.makeText(this, R.string.route_export_none, Toast.LENGTH_SHORT).show()
+                    } else {
+                        val ts = java.text.SimpleDateFormat("yyyyMMdd-HHmm", Locale.US)
+                            .format(java.util.Date())
+                        createRouteGpx.launch("route-${r.profile.id}-$ts.gpx")
+                    }
+                    true
+                }
+                R.id.action_route_hints -> {
+                    showRouteHintsDialog(); true
+                }
+                R.id.action_route_offline_segments -> {
+                    promptDownloadOfflineSegments(); true
                 }
                 else -> false
             }

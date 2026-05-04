@@ -2,14 +2,19 @@ package com.example.mgrskor.map
 
 import android.content.Context
 import android.text.format.Formatter
+import android.view.View
+import android.widget.EditText
 import android.widget.LinearLayout
 import android.widget.TextView
 import android.widget.Toast
+import com.example.mgrskor.data.AppDatabase
+import com.example.mgrskor.data.OfflineRegion
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.google.android.material.progressindicator.LinearProgressIndicator
 import com.google.android.material.slider.Slider
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.osmdroid.tileprovider.MapTileProviderBasic
@@ -20,6 +25,9 @@ import org.osmdroid.tileprovider.tilesource.TileSourceFactory
 import org.osmdroid.util.BoundingBox
 import org.osmdroid.views.MapView
 import java.io.File
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
 /**
  * Завантаження офлайн-плиток osmdroid для видимої області.
@@ -55,8 +63,15 @@ object OfflineTiles {
             orientation = LinearLayout.VERTICAL
             setPadding(padding, padding / 2, padding, 0)
         }
+        val defaultName = "Регіон " + SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.getDefault())
+            .format(Date())
+        val etName = EditText(context).apply {
+            hint = "Назва регіону"
+            setText(defaultName)
+            setSingleLine(true)
+        }
         val tvSummary = TextView(context).apply {
-            setPadding(0, 0, 0, padding / 2)
+            setPadding(0, padding / 2, 0, padding / 2)
         }
         val cbAllLayers = android.widget.CheckBox(context).apply {
             text = "Усі шари (OSM + Супутник + Підписи)"
@@ -71,6 +86,7 @@ object OfflineTiles {
             stepSize = 1f
             value = 2f
         }
+        container.addView(etName)
         container.addView(tvSummary)
         container.addView(cbAllLayers)
         container.addView(tvSlider)
@@ -118,7 +134,14 @@ object OfflineTiles {
                         .show()
                     return@setPositiveButton
                 }
-                downloadAreaMultiSource(context, map, box, zoomMin, zoomMax, sources)
+                val regionName = etName.text?.toString()?.trim().orEmpty()
+                    .ifEmpty { defaultName }
+                downloadAreaMultiSource(
+                    context, map, box, zoomMin, zoomMax, sources,
+                    regionName = regionName,
+                    estimatedTiles = totalTiles.toLong(),
+                    estimatedBytes = totalTiles.toLong() * AVG_TILE_BYTES
+                )
             }
             .show()
     }
@@ -153,7 +176,10 @@ object OfflineTiles {
         box: BoundingBox,
         zoomMin: Int,
         zoomMax: Int,
-        sources: List<ITileSource>
+        sources: List<ITileSource>,
+        regionName: String,
+        estimatedTiles: Long,
+        estimatedBytes: Long
     ) {
         val padding = (16 * context.resources.displayMetrics.density).toInt()
         val view = LinearLayout(context).apply {
@@ -183,9 +209,19 @@ object OfflineTiles {
         fun runNext() {
             if (sourceIdx >= sources.size) {
                 dialog.dismiss()
+                // Записуємо метадані регіону у БД (для подальшого керування / видалення).
+                CoroutineScope(Dispatchers.IO).launch {
+                    runCatching {
+                        OfflineRegions.save(
+                            context, regionName, box, zoomMin, zoomMax, sources,
+                            tileCount = estimatedTiles,
+                            sizeBytesEstimate = estimatedBytes
+                        )
+                    }
+                }
                 Toast.makeText(
                     context,
-                    if (failedTotal == 0) "Готово, плитки збережено"
+                    if (failedTotal == 0) "Готово, регіон «$regionName» збережено"
                     else "Завершено з помилками: $failedTotal",
                     Toast.LENGTH_LONG
                 ).show()
@@ -226,6 +262,84 @@ object OfflineTiles {
             cm.downloadAreaAsync(context, box, zoomMin, zoomMax, cb)
         }
         runNext()
+    }
+
+    /**
+     * Менеджер збережених регіонів: показує список з назвою, датою, розміром,
+     * діапазоном зумів і дозволяє видалити плитки конкретного регіону.
+     */
+    fun promptManageRegions(context: Context, map: MapView) {
+        CoroutineScope(Dispatchers.Main).launch {
+            val dao = AppDatabase.get(context).offlineRegionDao()
+            val regions = withContext(Dispatchers.IO) { dao.listAll() }
+            if (regions.isEmpty()) {
+                MaterialAlertDialogBuilder(context)
+                    .setTitle("Офлайн-регіони")
+                    .setMessage(
+                        "Немає збережених регіонів. Виберіть «Завантажити офлайн-карту» — " +
+                            "і вкажіть назву."
+                    )
+                    .setPositiveButton(android.R.string.ok, null)
+                    .show()
+                return@launch
+            }
+            val df = SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.getDefault())
+            val labels = regions.map { r ->
+                val size = Formatter.formatShortFileSize(context, r.sizeBytesEstimate)
+                val srcCount = r.sources.split(',').size
+                "${r.name}\n${df.format(Date(r.createdAtMs))} · z${r.zoomMin}–${r.zoomMax} · " +
+                    "≈$size · $srcCount шар(и) · ${r.tileCount} плиток"
+            }.toTypedArray()
+            MaterialAlertDialogBuilder(context)
+                .setTitle("Офлайн-регіони")
+                .setItems(labels) { _, idx ->
+                    val region = regions[idx]
+                    showRegionActions(context, map, region)
+                }
+                .setNegativeButton(android.R.string.cancel, null)
+                .show()
+        }
+    }
+
+    private fun showRegionActions(context: Context, map: MapView, region: OfflineRegion) {
+        val sizeText = Formatter.formatShortFileSize(context, region.sizeBytesEstimate)
+        MaterialAlertDialogBuilder(context)
+            .setTitle(region.name)
+            .setMessage(
+                "Зум: ${region.zoomMin}–${region.zoomMax}\n" +
+                    "Плиток: ${region.tileCount} (≈$sizeText)\n" +
+                    "Шари: ${region.sources}"
+            )
+            .setNeutralButton("Показати на карті") { _, _ ->
+                val box = BoundingBox(region.north, region.east, region.south, region.west)
+                map.zoomToBoundingBox(box, true, 64)
+            }
+            .setNegativeButton(android.R.string.cancel, null)
+            .setPositiveButton("Видалити") { _, _ ->
+                MaterialAlertDialogBuilder(context)
+                    .setTitle("Видалити регіон?")
+                    .setMessage(
+                        "Буде видалено плитки в межах прямокутника для цих шарів. " +
+                            "Якщо плитки використовуються іншим регіоном — їх можна буде " +
+                            "перезавантажити."
+                    )
+                    .setPositiveButton(android.R.string.ok) { _, _ ->
+                        CoroutineScope(Dispatchers.IO).launch {
+                            runCatching { OfflineRegions.delete(context, region) }
+                            withContext(Dispatchers.Main) {
+                                Toast.makeText(
+                                    context,
+                                    "Регіон «${region.name}» видалено",
+                                    Toast.LENGTH_SHORT
+                                ).show()
+                                map.invalidate()
+                            }
+                        }
+                    }
+                    .setNegativeButton(android.R.string.cancel, null)
+                    .show()
+            }
+            .show()
     }
 
     /** Показує фактичний розмір кешу й пропонує очистити. */

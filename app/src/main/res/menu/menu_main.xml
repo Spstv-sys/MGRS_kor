@@ -7,7 +7,31 @@
         android:title="@string/offline_download"
         app:showAsAction="ifRoom" />
     <item
+        android:id="@+id/action_offline_manage"
+        android:title="@string/offline_manage"
+        app:showAsAction="never" />
+    <item
         android:id="@+id/action_offline_clear"
         android:title="@string/offline_clear"
+        app:showAsAction="never" />
+    <item
+        android:id="@+id/action_route_to_target"
+        android:title="@string/route_to_target"
+        app:showAsAction="never" />
+    <item
+        android:id="@+id/action_route_clear"
+        android:title="@string/route_clear"
+        app:showAsAction="never" />
+    <item
+        android:id="@+id/action_route_export"
+        android:title="@string/route_export"
+        app:showAsAction="never" />
+    <item
+        android:id="@+id/action_route_hints"
+        android:title="@string/route_hints"
+        app:showAsAction="never" />
+    <item
+        android:id="@+id/action_route_offline_segments"
+        android:title="@string/route_offline_segments"
         app:showAsAction="never" />
 </menu>
